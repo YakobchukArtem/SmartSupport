@@ -6,10 +6,10 @@ using System.Text.RegularExpressions;
 
 namespace SmartSupport.Services
 {
-    public class AiService(HttpClient httpClient) : IAiService
+    public class AiService(HttpClient httpClient, IConfiguration configuration) : IAiService
     {
-        private readonly string _apiKey = "sk-a3a877a7cd2a4b93a91711d171a02aef";
-        private readonly string _apiUrl = "https://api.deepseek.com/chat/completions";
+        private readonly string _apiKey = configuration["DeepSeek:ApiKey"];
+        private readonly string _apiUrl = configuration["DeepSeek:ApiUrl"];
 
         public async Task<InnerMessage> GetAiResponseAsync(string question, string documentation)
         {
