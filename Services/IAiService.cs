@@ -67,7 +67,6 @@ namespace SmartSupport.Services
             }
             else
             {
-                0
                 requestBody = new
                 {
                     model = "deepseek-chat",
