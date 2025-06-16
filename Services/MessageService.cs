@@ -3,6 +3,7 @@ using SmartSupport.Models;
 using SmartSupport.Repositories.Interfaces;
 using SmartSupport.Services.Dto;
 using SmartSupport.Services.Interfaces;
+using System.Diagnostics;
 
 namespace SmartSupport.Services
 {
@@ -69,7 +70,7 @@ namespace SmartSupport.Services
 
             var documentation = (await companyService.GetCompanyByIdAsync(messageDto.CompanyId))?.DocumentationText;
 
-            var response = await aiService.GetAiResponseAsync(messageDto.Content, documentation);
+            var response = await aiService.GetAiResponseAsync(messageDto.Content, documentation, messageDto.IsLocal);
 
             await messageRepository.AddAsync(new Message
             {
@@ -82,7 +83,7 @@ namespace SmartSupport.Services
 
             return new()
             {
-                Message = response.message + Environment.NewLine + $"Refer to {response.reference} for more information.",
+                Message = response.message + $"  Refer to {response.reference} for more information.",
                 ChatId = chatId
             };
         }
@@ -98,25 +99,36 @@ namespace SmartSupport.Services
             await messageRepository.UpdateAsync(message);
         }
 
-        public async Task TestAiAsync(TestAiRequest request)
+        public class TestAiResult
         {
+            public int ProcessedRows { get; set; }
+            public double ElapsedSeconds { get; set; }
+        }
+
+        public async Task<TestAiResult> TestAiAsync(TestAiRequest request)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
             var documentation = (await companyService.GetCompanyByIdAsync(request.CompanyId))?.DocumentationText;
 
-            using var workbook = new XLWorkbook(request.InputFilePath);
+            var cleanPath = CleanPath(request.InputFilePath);
+
+            if (!File.Exists(cleanPath))
+                throw new FileNotFoundException("Файл не знайдено", cleanPath);
+
+            using var workbook = new XLWorkbook(cleanPath);
             var worksheet = workbook.Worksheet(1);
 
-            // Визначаємо номери колонок за назвами в заголовку (рядок 1)
             var headerCells = worksheet.Row(1).Cells().ToDictionary(c => c.GetString(), c => c.Address.ColumnNumber);
 
             int questionCol = headerCells["Question"];
             int botAnswerCol = headerCells["BotAnswer"];
             int botReferenceCol = headerCells["BotReference"];
 
-            // Визначаємо усі рядки, які використовуються у діапазоні
             var usedRows = worksheet.RangeUsed().RowsUsed();
-
-            // Фільтруємо рядки, починаючи з потрібного startRow (враховуючи, що рядок 1 - це заголовок)
             var rowsToProcess = usedRows.Where(r => r.RowNumber() >= request.StartRow);
+
+            int processedCount = 0;
 
             var tasks = rowsToProcess.Select(async row =>
             {
@@ -124,16 +136,32 @@ namespace SmartSupport.Services
                 if (string.IsNullOrWhiteSpace(question))
                     return;
 
-                var response = await aiService.GetAiResponseAsync(question, documentation);
+                var response = await aiService.GetAiResponseAsync(question, documentation, request.IsLocal);
 
                 row.Cell(botAnswerCol).Value = response.message ?? "";
                 row.Cell(botReferenceCol).Value = response.reference ?? "";
+
+                processedCount++;
             });
 
             await Task.WhenAll(tasks);
 
             workbook.SaveAs(request.InputFilePath);
+
+            stopwatch.Stop();
+
+            return new TestAiResult
+            {
+                ProcessedRows = processedCount,
+                ElapsedSeconds = stopwatch.Elapsed.TotalSeconds
+            };
         }
+
+        string CleanPath(string path)
+        {
+            return new string(path.Where(c => !char.IsControl(c) && c != '\u202A').ToArray());
+        }
+
     }
 
 }

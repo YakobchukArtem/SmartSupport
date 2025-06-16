@@ -6,5 +6,7 @@
         public string InputFilePath { get; set; }
 
         public int StartRow { get; set; }
+
+        public bool IsLocal { get; set; }
     }
 }

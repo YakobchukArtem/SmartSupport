@@ -9,6 +9,8 @@ namespace SmartSupport.Services.Dto
         public Guid CompanyId { get; set; }
         public string Content { get; set; } = string.Empty;
 
+        public bool IsLocal { get; set; }
+
         [JsonIgnore]
         public bool IsFromAi { get; set; }
     }

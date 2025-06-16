@@ -2,7 +2,7 @@
 {
     public interface IAiService
     {
-        Task<InnerMessage> GetAiResponseAsync(string question, string documentation);
-        Task<string> GetCategoriesAsync(string question, string documentation);
+        Task<InnerMessage> GetAiResponseAsync(string question, string documentation, bool Islocal);
+        Task<string> GetCategoriesAsync(string question, string documentation, bool Islocal);
     }
 }

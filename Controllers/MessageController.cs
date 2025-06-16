@@ -50,8 +50,7 @@ namespace SmartSupport.Controllers
         [HttpPost("test")]
         public async Task<IActionResult> Test([FromBody] TestAiRequest request)
         {
-            await messageService.TestAiAsync(request);
-            return Ok();
+            return Ok(await messageService.TestAiAsync(request));
         }
 
 
